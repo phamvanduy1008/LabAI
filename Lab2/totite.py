@@ -1,105 +1,151 @@
 import tkinter as tk
-import math
+import random
 
-# Hàm kiểm tra nếu người chơi chiến thắng
-def check_winner(board, player):
-    # Kiểm tra hàng, cột và hai đường chéo xem tất cả ô có cùng ký hiệu không
-    return any(all(spot == player for spot in row) for row in board) or \
-           any(all(board[r][c] == player for r in range(3)) for c in range(3)) or \
-           all(board[i][i] == player for i in range(3)) or \
-           all(board[i][2 - i] == player for i in range(3))
+# Các hằng số biểu thị người chơi
+PLAYER_X = 'X'
+PLAYER_O = 'O'
+EMPTY = ' '
 
-# Hàm kiểm tra nếu trò chơi hòa (không còn ô trống)
-def is_draw(board):
-    return all(spot != ' ' for row in board for spot in row)
 
-# Thuật toán Minimax tính điểm cho mỗi trạng thái của bảng
-def minimax(board, is_maximizing):
-    if check_winner(board, 'O'): return 10  # Máy thắng trả về 10
-    if check_winner(board, 'X'): return -10  # Người thắng trả về -10
-    if is_draw(board): return 0  # Hòa trả về 0
+# Hàm kiểm tra thắng thua
+def check_winner(board):
+    # Kiểm tra các hàng, cột, và đường chéo
+    for i in range(3):
+        if board[i][0] == board[i][1] == board[i][2] != EMPTY:  # Kiểm tra hàng
+            return board[i][0]
+        if board[0][i] == board[1][i] == board[2][i] != EMPTY:  # Kiểm tra cột
+            return board[0][i]
 
-    # Khởi tạo giá trị tốt nhất
-    best_score = -math.inf if is_maximizing else math.inf
+    if board[0][0] == board[1][1] == board[2][2] != EMPTY:  # Kiểm tra đường chéo chính
+        return board[0][0]
+    if board[0][2] == board[1][1] == board[2][0] != EMPTY:  # Kiểm tra đường chéo phụ
+        return board[0][2]
+
+    # Kiểm tra nếu không còn nước đi nào
+    if all(board[i][j] != EMPTY for i in range(3) for j in range(3)):
+        return 'Tie'  # Hòa
+
+    return None  # Chưa kết thúc
+
+
+# Hàm đánh giá trạng thái
+def evaluate(board):
+    winner = check_winner(board)
+    if winner == PLAYER_X:
+        return 1
+    elif winner == PLAYER_O:
+        return -1
+    else:
+        return 0
+
+
+# Hàm tìm tất cả các nước đi có thể
+def get_available_moves(board):
+    moves = []
     for i in range(3):
         for j in range(3):
-            if board[i][j] == ' ':  # Nếu ô trống
-                board[i][j] = 'O' if is_maximizing else 'X'  # Tạm thời đánh dấu nước đi
-                score = minimax(board, not is_maximizing)  # Đệ quy Minimax
-                board[i][j] = ' '  # Khôi phục ô trống sau khi đánh giá
-                # Cập nhật điểm tốt nhất cho chế độ tối đa hóa hoặc tối thiểu hóa
-                best_score = max(score, best_score) if is_maximizing else min(score, best_score)
-    return best_score
+            if board[i][j] == EMPTY:
+                moves.append((i, j))
+    return moves
 
-# Tìm nước đi tốt nhất cho máy tính
+
+# Hàm Minimax
+def minmax(board, depth, is_maximizing):
+    score = evaluate(board)
+    if score == 1:  # Người chơi X thắng
+        return score
+    if score == -1:  # Người chơi O thắng
+        return score
+    if score == 0 and all(board[i][j] != EMPTY for i in range(3) for j in range(3)):  # Hòa
+        return 0
+
+    if is_maximizing:
+        best = -float('inf')  # tạo biến bé nhất
+        for move in get_available_moves(board): #duyệt các nước có thể đi
+            i, j = move
+            board[i][j] = PLAYER_X
+            best = max(best, minmax(board, depth + 1, False)) # chọn ra điểm cao nhất
+            board[i][j] = EMPTY
+        return best
+    else:
+        best = float('inf')  # Tìm giá trị nhỏ nhất
+        for move in get_available_moves(board):
+            i, j = move
+            board[i][j] = PLAYER_O
+            best = min(best, minmax(board, depth + 1, True))
+            board[i][j] = EMPTY
+        return best
+
+
+# Hàm tìm nước đi tối ưu cho người chơi X (Max)
 def find_best_move(board):
-    best_move, best_score = (-1, -1), -math.inf
-    for i in range(3):
-        for j in range(3):
-            if board[i][j] == ' ':
-                board[i][j] = 'O'  # Tạm thời đánh dấu nước đi cho máy
-                score = minimax(board, False)  # Tính điểm bằng Minimax
-                board[i][j] = ' '  # Khôi phục ô trống sau khi đánh giá
-                if score > best_score:  # Cập nhật nước đi tốt nhất nếu điểm cao hơn
-                    best_score, best_move = score, (i, j)
+    best_val = -float('inf')
+    best_move = (-1, -1)
+
+    for move in get_available_moves(board):
+        i, j = move
+        board[i][j] = PLAYER_X
+        move_val = minmax(board, 0, False)
+        board[i][j] = EMPTY
+
+        if move_val > best_val:
+            best_move = move
+            best_val = move_val
+
     return best_move
 
-# Hàm giới hạn nước đi: xóa nước đầu tiên khi người chơi có hơn 3 nước
-def manage_moves(moves, board):
-    if len(moves) > 3:
-        x, y = moves.pop(0)  # Xóa nước đầu tiên khỏi danh sách
-        board[x][y], buttons[x][y]["text"] = ' ', ' '  # Cập nhật bảng và giao diện
 
-# Hàm khi người chơi nhấp vào một ô
-def on_click(row, col):
-    if board[row][col] == ' ' and not game_over:  # Kiểm tra ô trống và trò chơi chưa kết thúc
-        board[row][col], buttons[row][col]["text"] = 'X', 'X'  # Đặt nước đi của người chơi
-        player_moves.append((row, col))  # Lưu nước đi vào danh sách
-        manage_moves(player_moves, board)  # Giới hạn nước đi của người chơi
+# Giao diện Tkinter
+class TicTacToeGame:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Tic Tac Toe")
 
-        if check_winner(board, 'X'):  # Kiểm tra người chơi thắng
-            status_label["text"] = "Bạn thắng!"
-            end_game()
-        elif is_draw(board):  # Kiểm tra nếu hòa
-            status_label["text"] = "Hòa!"
-            end_game()
-        else:
-            # Máy tính thực hiện nước đi
-            x, y = find_best_move(board)
-            if (x, y) != (-1, -1):
-                board[x][y], buttons[x][y]["text"] = 'O', 'O'  # Đặt nước đi của máy
-                computer_moves.append((x, y))  # Lưu nước đi vào danh sách
-                manage_moves(computer_moves, board)  # Giới hạn nước đi của máy
-                if check_winner(board, 'O'):  # Kiểm tra máy thắng
-                    status_label["text"] = "Máy thắng!"
-                    end_game()
-                elif is_draw(board):  # Kiểm tra nếu hòa
-                    status_label["text"] = "Hòa!"
-                    end_game()
+        # Khởi tạo bảng trò chơi 3x3
+        self.board = [[EMPTY] * 3 for _ in range(3)]
+        self.buttons = [[None] * 3 for _ in range(3)]
+        self.turn = PLAYER_O  # Bắt đầu với người chơi O
+        self.game_over = False
 
-# Hàm kết thúc trò chơi: khóa tất cả các nút lại
-def end_game():
-    global game_over
-    game_over = True
-    for row in buttons:
-        for button in row:
-            button.config(state='disabled')  # Vô hiệu hóa nút khi trò chơi kết thúc
+        # Tạo các nút cho bảng trò chơi
+        for i in range(3):
+            for j in range(3):
+                self.buttons[i][j] = tk.Button(root, text=EMPTY, font=("Arial", 24), width=5, height=2,command=lambda i=i, j=j: self.make_move(i, j))
+                self.buttons[i][j].grid(row=i, column=j)
 
-# Khởi tạo giao diện trò chơi
-root = tk.Tk()
-root.title("Tic Tac Toe")
-board = [[' ' for _ in range(3)] for _ in range(3)]  # Bảng Tic Tac Toe 3x3
-buttons = [[tk.Button(root, text=' ', font=('Arial', 24), width=5, height=2,
-                      command=lambda r=i, c=j: on_click(r, c)) for j in range(3)] for i in range(3)]
-# Đặt các nút trên giao diện
-for i in range(3):
-    for j in range(3):
-        buttons[i][j].grid(row=i, column=j)
+        # Thêm nhãn cho trạng thái
+        self.status_label = tk.Label(root, text="Lượt O", font=("Arial", 16))
+        self.status_label.grid(row=3, column=0, columnspan=3)
 
-status_label = tk.Label(root, text="Lượt của bạn", font=('Arial', 14))
-status_label.grid(row=3, column=0, columnspan=3)  # Hiển thị trạng thái trò chơi
+    def make_move(self, i, j):
+        if self.board[i][j] == EMPTY and not self.game_over:
+            # Cập nhật bảng trò chơi
+            self.board[i][j] = self.turn
+            self.buttons[i][j].config(text=self.turn)
 
-game_over = False  # Biến trạng thái trò chơi
-player_moves, computer_moves = [], []  # Danh sách lưu nước đi của người chơi và máy
+            # Kiểm tra thắng thua
+            winner = check_winner(self.board)
+            if winner:
+                self.game_over = True
+                if winner == "Tie":
+                    self.status_label.config(text="Hòa!")
+                else:
+                    self.status_label.config(text=f"{winner} thắng!")
+            elif self.turn == PLAYER_O:  # Nếu là lượt của O, máy sẽ chơi
+                self.turn = PLAYER_X
+                self.root.after(500, self.machine_move)  # Để máy chơi sau một khoảng thời gian ngắn
+            else:
+                self.turn = PLAYER_O  # Chuyển lượt cho người chơi O
 
-root.mainloop()  # Bắt đầu vòng lặp giao diện
+    def machine_move(self):
+        if not self.game_over:
+            # Máy chơi sẽ đưa ra nước đi tối ưu
+            i, j = find_best_move(self.board)
+            self.make_move(i, j)
+
+
+# Tạo giao diện và chạy trò chơi
+if __name__ == "__main__":
+    root = tk.Tk()
+    game = TicTacToeGame(root)
+    root.mainloop()
