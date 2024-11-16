@@ -1,9 +1,9 @@
 import heapq
 
-def ucs_tsp(graph, start):
-    # hàng đợi ưu tiên, lưu trữ (chi phí hiện tại, thành phố hiện tại, đường đi đã thăm)
+def ucs_tsp(graph, start): # tim chi phi đường đi
+    # hàng đợi lưu trữ (chi phí hiện tại, thành phố hiện tại, đường đi đã thăm)
     frontier = [(0, start, [start])]
-    visited = set()  # để tránh thăm lại cùng một cấu hình
+    visited = set()  # lưu trữ các nơi đã đi
 
     while frontier:
         current_cost, current_city, path = heapq.heappop(frontier)
@@ -14,17 +14,16 @@ def ucs_tsp(graph, start):
 
         # Duyệt qua các thành phố kề
         for neighbor, travel_cost in graph[current_city].items():
-            if neighbor not in path or (len(path) == len(graph) and neighbor == start):
-                # Tính toán chi phí mới đến thành phố kề
+            if neighbor not in path or (len(path) == len(graph) and neighbor == start): # chưa đi hoặc đi 1 vòng xong quay về mà chưa đi hết
+                # Tính toán chi phí
                 new_cost = current_cost + travel_cost
-                # Tạo đường đi mới bao gồm thành phố kề
+                # path hiện tại + neighbor
                 new_path = path + [neighbor]
-                # Đẩy vào hàng đợi ưu tiên
+                # Đẩy vào hàng đợi
                 heapq.heappush(frontier, (new_cost, neighbor, new_path))
 
-    return [], 0  # Trả về danh sách rỗng và chi phí là 0 nếu không tìm được đường đi
+    return [], 0
 
-# Ví dụ về đồ thị các thành phố và khoảng cách giữa chúng
 graph = {
     'A': {'B': 1, 'C': 4, 'D': 20},
     'B': {'A': 1, 'C': 2, 'D': 5},
@@ -32,7 +31,6 @@ graph = {
     'D': {'A': 20, 'B': 5, 'C': 1}
 }
 
-# Bắt đầu từ thành phố 'A'
 path, total_cost = ucs_tsp(graph, 'A')
 print("Đường đi UCS:", path)
 print("Chi phí UCS:", total_cost)
